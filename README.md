@@ -4,25 +4,51 @@ An automated geospatial processing pipeline for turning raw elevation and hydrog
 
 The project is designed as a portfolio project emphasizing reproducible geospatial data processing, DEM quality control, hydrologic terrain conditioning, raster/vector data management, automation, and validation.
 
+---
+
 ## Project Status
 
-**Current stage:** Study-area definition and data preparation
+**Current stage:** DEM acquisition completed; beginning DEM inventory and quality control
 
-Completed:
+### Completed
+
 - Project environment and repository structure created
 - Python 3.14.7 virtual environment configured
 - Core geospatial Python packages installed and tested
 - Git repository initialized and pushed to GitHub
+- `.gitignore` configured to exclude large raw and generated datasets
 - USGS Watershed Boundary Dataset (WBD) HU-2 Region 04 GeoPackage acquired
 - Manistee HUC-8 identified
 - Four HUC-10 units selected as the working Upper Manistee study area
 - 33 HUC-12 units identified within those HUC-10s
 - HUC-12s dissolved into a single study-area boundary
-- Boundary saved as a GeoPackage
+- Study-area boundary saved as a GeoPackage
+- USGS 3DEP DEM sources evaluated
+- USGS Seamless 1-meter DEM (S1M) evaluated and determined not to provide coverage for the study area
+- USGS 3DEP project-based 1-meter DEM products identified through the TNM Access API
+- DEM tile coverage intersecting the study area evaluated across available 1-meter projects
+- 71 required 1-meter DEM tiles selected
+- DEM download URLs and source information recorded in an acquisition manifest
+- All 71 DEM tiles successfully downloaded and verified
+- Downloaded DEMs stored locally outside Git
+- DEM acquisition script created with download verification and restart-safe behavior
 
-Next major stage:
-- Select and acquire an appropriate USGS 3DEP DEM
-- Build the DEM acquisition, processing, conditioning, and QA/QC pipeline
+### Current stage
+
+The project is now moving from **data acquisition** into **DEM inventory and quality control**.
+
+### Next major stages
+
+1. Inventory and validate the downloaded DEM tiles
+2. Analyze overlaps between DEM acquisition projects
+3. Resolve project-to-project DEM differences and determine a mosaicking strategy
+4. Mosaic and clip the DEM to the Upper Manistee study area
+5. Acquire and validate hydrography data
+6. Develop hydrologic terrain conditioning
+7. Generate flow and terrain derivatives
+8. Implement automated raster/vector QA/QC
+9. Convert final outputs to efficient formats such as COG and GeoParquet
+10. Add automated tests and configuration-driven execution
 
 ---
 
@@ -90,7 +116,7 @@ For reproducibility, the project explicitly defines the study area as the four H
 
 ## 3. Data Sources
 
-### Watershed Boundary Dataset
+### 3.1 Watershed Boundary Dataset
 
 Source:
 
@@ -124,43 +150,130 @@ The raw source data is intentionally excluded from Git because of its size.
 
 ---
 
+### 3.2 USGS 3DEP 1-meter DEM
+
+The project uses USGS 3DEP 1-meter DEM products as the elevation source.
+
+The DEM acquisition process was performed using the **USGS The National Map (TNM) Access API** to identify products intersecting the study-area boundary.
+
+Because the 1-meter DEM products are organized by acquisition project, the study area is covered by DEMs from multiple projects.
+
+The selected acquisition projects are:
+
+- `MI_13County_2015_C16`
+- `MI_FEMA_2019_C19`
+- `MI Wexford 2016`
+- `MI Missaukee 2016`
+- `MI_16Co_Roscommon_2015`
+
+A total of **71 1-meter DEM tiles** were selected and downloaded.
+
+### DEM acquisition summary
+
+| Acquisition project | Tiles |
+|---|---:|
+| MI_13County_2015_C16 | 26 |
+| MI_FEMA_2019_C19 | 24 |
+| MI Wexford 2016 | 19 |
+| MI Missaukee 2016 | 1 |
+| MI_16Co_Roscommon_2015 | 1 |
+| **Total** | **71** |
+
+The downloaded DEMs occupy approximately **16.6 GB** on disk.
+
+The DEM files are stored locally under:
+
+```text
+data/raw/dem/
+```
+
+They are intentionally excluded from Git.
+
+### DEM acquisition manifest
+
+Source URLs, tile information, and acquisition records are preserved in:
+
+```text
+data/raw/dem_acquisition_manifest.csv
+```
+
+This manifest is an important part of the project's provenance and reproducibility workflow.
+
+---
+
+### 3.3 Seamless 1-meter DEM evaluation
+
+The newer USGS Seamless 1-meter DEM (S1M) product was investigated as a potential alternative to the project-based DEM products.
+
+The project downloaded and inspected the S1M spatial metadata index and tested it against the Upper Manistee study-area boundary.
+
+The available S1M index did **not** contain tiles intersecting the Upper Manistee study area.
+
+As a result, S1M was not used for this project.
+
+This decision is documented rather than simply assuming that the newest available 1-meter product provides coverage.
+
+The downloaded S1M metadata used for this evaluation is retained locally under:
+
+```text
+data/raw/metadata/S1M_Products.gpkg
+```
+
+---
+
 ## 4. Repository Structure
 
-Current/planned structure:
+Current and planned structure:
 
 ```text
 terrain-processing-pipeline/
+
 ├── README.md
+│
 ├── data/
 │   ├── raw/
-│   │   └── WBD_04_HU2_GPKG.gpkg
+│   │   ├── dem/
+│   │   │   └── *.tif
+│   │   ├── metadata/
+│   │   │   └── S1M_Products.gpkg
+│   │   ├── WBD_04_HU2_GPKG.gpkg
+│   │   └── dem_acquisition_manifest.csv
+│   │
 │   └── boundary/
 │       └── upper_manistee_boundary.gpkg
+│
 ├── src/
 │   ├── acquisition/
 │   │   ├── download_dem.py
 │   │   └── download_hydro.py
+│   │
 │   ├── processing/
 │   │   ├── mosaic.py
 │   │   ├── reproject.py
 │   │   ├── condition_dem.py
 │   │   └── derive_terrain.py
+│   │
 │   ├── validation/
 │   │   ├── raster_qc.py
 │   │   ├── vector_qc.py
 │   │   └── terrain_qc.py
+│   │
 │   └── pipeline.py
+│
 ├── tests/
 │   ├── test_raster.py
 │   ├── test_vector.py
 │   └── test_pipeline.py
+│
 ├── configs/
 │   └── upper_manistee.yaml
+│
 ├── outputs/
 │   ├── raw/
 │   ├── conditioned/
 │   ├── flow/
 │   └── qa/
+│
 └── docs/
     ├── methodology.md
     └── data_dictionary.md
@@ -186,6 +299,8 @@ Core packages currently installed and tested:
 - pyproj
 - numpy
 - matplotlib
+- requests
+- git-filter-repo
 
 Additional packages/tools may be added as the pipeline develops.
 
@@ -199,7 +314,7 @@ Potential future tooling includes:
 - GeoParquet tooling
 - pytest
 
-A Rust component may also be added later to demonstrate work with compiled geospatial processing/validation tooling.
+A Rust component may also be added later to demonstrate work with compiled geospatial processing and validation tooling.
 
 ---
 
@@ -215,7 +330,11 @@ C:\Users\jbwom\Downloads\PersonalProjects\terrain-processing-pipeline
 
 A Git repository was initialized and pushed to GitHub.
 
-The repository is intended to contain the processing code, documentation, configuration, tests, and lightweight project metadata—not the large raw datasets.
+The repository is intended to contain processing code, documentation, configuration, tests, and lightweight project metadata rather than large raw datasets.
+
+Large data files were removed from Git history after an initial accidental commit and the repository was successfully pushed with the large files excluded.
+
+---
 
 ### 6.2 WBD acquisition
 
@@ -227,6 +346,8 @@ data/raw/WBD_04_HU2_GPKG.gpkg
 
 The GeoPackage contains the WBD hierarchy needed to define the study area.
 
+---
+
 ### 6.3 Manistee HUC-8 identification
 
 The `WBDHU8` layer was inspected.
@@ -237,6 +358,8 @@ The Manistee watershed was identified as:
 HUC-8: 04060103
 Name: Manistee
 ```
+
+---
 
 ### 6.4 HUC-10 inspection
 
@@ -263,6 +386,8 @@ The four HUC-10s selected for the working Upper Manistee study area are:
 0406010305
 ```
 
+---
+
 ### 6.5 HUC-12 inspection
 
 The `WBDHU12` layer was filtered using the four selected HUC-10 identifiers.
@@ -274,6 +399,8 @@ This produced:
 ```
 
 These were then dissolved into a single study-area polygon.
+
+---
 
 ### 6.6 Study-area boundary creation
 
@@ -297,6 +424,58 @@ For area calculation, the boundary was temporarily projected to EPSG:5070, resul
 
 ---
 
+### 6.7 DEM source evaluation
+
+Several USGS 3DEP 1-meter DEM products were evaluated against the study-area boundary.
+
+The analysis identified DEM tiles by their actual geographic bounding boxes rather than relying only on tile naming conventions.
+
+This showed that the Upper Manistee study area is covered by multiple 3DEP acquisition projects.
+
+A project-level coverage analysis was performed to determine which tiles were required and to avoid downloading unnecessary data.
+
+---
+
+### 6.8 DEM acquisition
+
+A final set of **71 1-meter DEM tiles** was selected.
+
+The selected tiles were verified before downloading. Every selected source URL returned successfully.
+
+The acquisition script was designed to:
+
+- read the acquisition manifest
+- download one tile at a time
+- display progress
+- skip already completed files
+- write to a temporary `.part` file
+- verify the downloaded file size
+- rename the file only after successful verification
+- report failed downloads
+- allow the process to be safely restarted
+
+All 71 tiles were successfully downloaded.
+
+Final acquisition result:
+
+```text
+Manifest tiles: 71
+Already complete: 0
+Downloaded: 71
+Failed: 0
+Elapsed time: approximately 13.6 minutes
+DEM files on disk: 71
+DEM disk usage: approximately 16.61 GB
+```
+
+The acquisition manifest is retained at:
+
+```text
+data/raw/dem_acquisition_manifest.csv
+```
+
+---
+
 ## 7. Planned Processing Workflow
 
 The final pipeline is expected to follow this general sequence:
@@ -308,7 +487,10 @@ USGS 3DEP DEM
 Data acquisition + provenance
       │
       ▼
-Raw DEM validation
+Raw DEM inventory + QA/QC
+      │
+      ▼
+Resolve overlapping DEM projects
       │
       ▼
 Mosaic / tile management
@@ -320,10 +502,16 @@ Clip to Upper Manistee
 CRS + resolution alignment
       │
       ▼
+Hydrography acquisition
+      │
+      ▼
+Hydrography QA/QC
+      │
+      ▼
 DEM conditioning
       │
       ├── NoData / void handling
-      ├── sink handling
+      ├── sink/depression handling
       └── hydrographic enforcement
       │
       ▼
@@ -339,9 +527,6 @@ Terrain derivatives
       └── elevation statistics
       │
       ▼
-Hydrography QA/QC
-      │
-      ▼
 Automated validation
       │
       ▼
@@ -355,83 +540,103 @@ Analysis-ready outputs
 
 ## 8. Immediate Next Steps
 
-### Step 1 — Select the DEM source
+### Step 1 — Build DEM inventory and QA/QC
 
-Determine the most appropriate USGS 3DEP product and resolution for the 3,352.73 km² study area.
-
-The choice should balance:
-
-- spatial resolution
-- data volume
-- processing time
-- coverage
-- licensing/provenance
-- suitability for hydrologic terrain analysis
-
-The project should document why the selected DEM product was chosen.
-
-### Step 2 — Determine DEM tile coverage
-
-Use the study-area boundary to determine which elevation tiles intersect the Upper Manistee study area.
-
-The goal is to acquire only the necessary data rather than downloading an unnecessarily large regional dataset.
-
-### Step 3 — Build DEM acquisition script
-
-Create:
-
-```text
-src/acquisition/download_dem.py
-```
-
-The script should eventually:
-
-- identify required DEM tiles
-- download them
-- preserve source metadata
-- record provenance
-- verify downloaded files
-- avoid downloading files that already exist
-
-### Step 4 — Build raster QA/QC
-
-Create:
+Create the initial raster validation tool:
 
 ```text
 src/validation/raster_qc.py
 ```
 
+The first version should inspect all 71 DEMs without loading the entire dataset into memory.
+
 Initial checks should include:
 
-- CRS
-- pixel dimensions
-- spatial resolution
-- raster width/height
-- bounding box
-- NoData value
-- datatype
-- minimum/maximum elevation
 - file readability
-- missing/corrupt tiles
+- CRS
+- pixel size
+- raster width/height
+- number of bands
+- datatype
+- NoData value
+- spatial bounds
+- elevation minimum/maximum
+- file size
+- transform
+- consistency between tiles
 
-Later checks can include:
+The tool should produce a machine-readable inventory, such as:
 
-- compression
-- tiling
-- COG compliance
-- internal overviews
+```text
+outputs/qa/dem_inventory.csv
+```
 
-### Step 5 — Mosaic and clip DEM
+and a concise QA summary.
 
-Create processing tools for:
+---
 
-- mosaicking tiles
+### Step 2 — Analyze DEM overlaps
+
+Because the selected DEMs originate from multiple acquisition projects, overlapping coverage needs to be evaluated before mosaicking.
+
+The analysis should determine:
+
+- which tiles overlap
+- which projects overlap
+- how much area is affected
+- whether overlapping projects have different resolutions or metadata
+- whether elevation differences exist between overlapping datasets
+
+This is an important part of the project because the USGS 1-meter DEM products are organized by acquisition project rather than being a single uniformly acquired regional surface.
+
+The mosaicking strategy should therefore be based on an explicit, documented decision rather than simply combining all files in arbitrary order.
+
+---
+
+### Step 3 — Acquire hydrography
+
+Identify an appropriate hydrography dataset for the study area.
+
+Potential sources include USGS 3D Hydrography Program (3DHP) or other appropriate USGS hydrography products.
+
+The selected hydrography should be documented in the same way as the DEM:
+
+- source
+- version
+- date
+- spatial coverage
+- resolution/scale
+- coordinate reference system
+- download location
+- licensing/public-domain status
+- processing applied
+
+Create:
+
+```text
+src/acquisition/download_hydro.py
+```
+
+if automated acquisition is appropriate.
+
+---
+
+### Step 4 — Mosaic and clip DEM
+
+Develop tools for:
+
+- mosaicking DEM tiles
+- resolving overlaps
 - clipping to the Upper Manistee boundary
-- reprojection
-- raster alignment
-- resampling when necessary
+- maintaining consistent CRS
+- maintaining 1-meter resolution
+- preserving appropriate NoData handling
 
-### Step 6 — Hydrologic conditioning
+The goal is to produce a clean study-area DEM suitable for subsequent terrain processing.
+
+---
+
+### Step 5 — Hydrologic conditioning
 
 Develop:
 
@@ -439,17 +644,19 @@ Develop:
 src/processing/condition_dem.py
 ```
 
-Potential operations:
+Potential operations include:
 
-- sink identification
-- sink filling
-- depression handling
+- identifying sinks/depressions
+- filling or breaching depressions where appropriate
+- handling NoData/void areas
 - hydrographic enforcement / stream burning
-- before/after validation
+- validating the terrain before and after conditioning
 
-The exact conditioning method should be documented and justified rather than treated as a black box.
+The conditioning method should be explicitly justified and documented.
 
-### Step 7 — Terrain derivatives
+---
+
+### Step 6 — Generate terrain and hydrologic derivatives
 
 Generate:
 
@@ -457,9 +664,14 @@ Generate:
 - aspect
 - flow direction
 - flow accumulation
-- potentially watershed/catchment products
+- drainage/network products
+- potentially watershed or catchment delineations
 
-### Step 8 — Vector QA/QC
+These outputs will demonstrate that the processed DEM is suitable for hydrologic terrain analysis.
+
+---
+
+### Step 7 — Vector QA/QC
 
 Develop:
 
@@ -475,21 +687,63 @@ Checks should eventually include:
 - geometry type consistency
 - topology
 - connectivity
-- alignment between hydrography and terrain
+- spatial alignment
+- hydrography/terrain consistency
 
-### Step 9 — Automated testing
+---
+
+### Step 8 — Final terrain QA/QC
+
+Develop:
+
+```text
+src/validation/terrain_qc.py
+```
+
+Potential checks include:
+
+- remaining NoData areas
+- remaining sinks/depressions
+- stream/terrain alignment
+- flow connectivity
+- elevation anomalies
+- raster continuity across tile boundaries
+- expected study-area coverage
+- consistency between terrain derivatives
+
+---
+
+### Step 9 — Efficient output formats
+
+Final analysis-ready datasets should use appropriate geospatial formats.
+
+Potential outputs include:
+
+- Cloud Optimized GeoTIFF (COG)
+- GeoParquet
+- GeoPackage
+
+The project should document why each format was selected and validate the resulting files.
+
+---
+
+### Step 10 — Automated testing
 
 Use `pytest` to create tests for:
 
 - raster metadata
 - expected CRS
-- expected dimensions/resolution
+- expected resolution
+- expected dimensions
 - geometry validity
 - pipeline configuration
 - processing functions
 - edge cases
+- QA/QC functions
 
-### Step 10 — Reproducible configuration
+---
+
+### Step 11 — Reproducible configuration
 
 Create:
 
@@ -505,6 +759,7 @@ The configuration should eventually contain parameters such as:
 - target resolution
 - NoData handling
 - conditioning parameters
+- hydrography source
 - output locations
 
 This will allow the pipeline to be rerun for another study area without rewriting the processing code.
@@ -520,9 +775,11 @@ Particular emphasis will be placed on:
 ### DEM acquisition and management
 
 - source discovery
+- API-based acquisition
 - provenance
 - tile management
 - metadata
+- coverage analysis
 - licensing/source documentation
 
 ### Raster processing
@@ -532,6 +789,7 @@ Particular emphasis will be placed on:
 - reprojection
 - resampling
 - NoData handling
+- overlap management
 - large raster management
 
 ### Hydrologic terrain processing
@@ -548,6 +806,7 @@ Particular emphasis will be placed on:
 - topology
 - hydrography alignment
 - attribute validation
+- connectivity
 
 ### Efficient geospatial formats
 
@@ -568,6 +827,7 @@ The project will emphasize:
 - Git/GitHub
 - reproducibility
 - documentation
+- validation
 
 A small Rust utility may be added later to demonstrate the ability to work with a Rust-based geospatial codebase.
 
@@ -583,10 +843,33 @@ The repository should contain:
 - configuration files
 - tests
 - documentation
-- metadata
+- lightweight metadata
+- acquisition manifests
 - small example datasets where appropriate
 
-Large raw and generated datasets should remain outside the Git repository and be referenced through documentation.
+Large raw and generated datasets remain outside the Git repository and are referenced through documentation and manifests.
+
+### Current raw data
+
+The project currently maintains approximately 16.6 GB of DEM data locally:
+
+```text
+data/raw/dem/
+```
+
+along with the WBD GeoPackage and supporting metadata.
+
+These files are excluded from Git through `.gitignore`.
+
+### Acquisition provenance
+
+DEM acquisition information is preserved in:
+
+```text
+data/raw/dem_acquisition_manifest.csv
+```
+
+This allows the source URLs and selected tiles to be reconstructed without storing the large raster files in the repository.
 
 Before adding additional data, verify that `.gitignore` is correctly named:
 
@@ -604,6 +887,7 @@ The intended ignore rules include:
 
 ```text
 .venv/
+
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -628,15 +912,38 @@ The current boundary is a project-defined working boundary based on four HUC-10s
 
 If a specific management organization or agency provides a more appropriate Upper Manistee boundary, the project can compare the two and document the final decision.
 
+### DEM source
+
+The project selected USGS 3DEP project-based 1-meter DEMs after evaluating available coverage.
+
+The newer Seamless 1-meter DEM (S1M) was investigated but did not provide coverage for the Upper Manistee study area.
+
+The selected 71 tiles originate from multiple acquisition projects, so overlap and cross-project consistency must be evaluated before producing the final mosaic.
+
 ### DEM resolution
 
-The DEM resolution has **not yet been selected**.
+The working DEM resolution is **1 meter** based on the selected USGS 3DEP products.
 
-The next stage should evaluate available 3DEP products before committing to a resolution.
+The final processing workflow should preserve this resolution unless a specific processing step justifies resampling.
 
-### Hydrologic conditioning method
+### DEM overlap
 
-No conditioning method has been implemented yet. The final method should be selected based on the DEM characteristics and hydrography available for the study area.
+Multiple 3DEP acquisition projects overlap portions of the study area.
+
+The project has not yet determined the final priority/order for resolving these overlaps. This will be addressed during DEM QA/QC and mosaicking.
+
+### Hydrologic conditioning
+
+No conditioning method has been implemented yet.
+
+The final method should be selected based on:
+
+- DEM characteristics
+- hydrography source
+- intended hydrologic analysis
+- treatment of sinks/depressions
+- treatment of streams
+- reproducibility
 
 ---
 
@@ -646,9 +953,15 @@ A central goal of this project is that another geospatial professional should be
 
 1. Where the data came from
 2. Why the study area was selected
-3. What transformations were applied
-4. What assumptions were made
-5. How data quality was evaluated
-6. How to reproduce the outputs
+3. Why the DEM source was selected
+4. What transformations were applied
+5. What assumptions were made
+6. How overlapping datasets were handled
+7. How data quality was evaluated
+8. How to reproduce the outputs
 
 The final project should therefore document not only the final maps and terrain products, but also the **processing decisions, validation results, and provenance of the input data**.
+
+The DEM acquisition stage demonstrates this principle by preserving both the acquisition manifest and the reasoning behind the selected 1-meter dataset.
+
+The next major focus is therefore **DEM QA/QC and overlap analysis before mosaicking**.
